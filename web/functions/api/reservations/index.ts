@@ -33,6 +33,7 @@ export const onRequestPost: PagesFunction<AgentEnv> = async ({ request, env }) =
     status?: 'confirmed' | 'blocked';
     guestEmail?: string;
     guestPhone?: string;
+    confirmationCode?: string;
   };
 
   if (!body.propertyId || !body.checkIn || !body.checkOut) {
@@ -50,6 +51,7 @@ export const onRequestPost: PagesFunction<AgentEnv> = async ({ request, env }) =
     status: body.status ?? 'confirmed',
     guestEmail: body.guestEmail,
     guestPhone: body.guestPhone,
+    confirmationCode: body.confirmationCode,
   });
   return corsJson(request, item, 201);
 };

@@ -58,18 +58,25 @@ export interface Reservation {
   note?: string;
   guestEmail?: string;
   guestPhone?: string;
+  confirmationCode?: string;
   surveyToken?: string;
   surveySentAt?: string;
-  surveyChannel?: 'email' | 'sms';
+  surveyChannel?: 'email' | 'sms' | 'none';
   surveyCompletedAt?: string;
 }
 
+export type SurveyVariant = 'vip' | 'classic';
+
 export interface GuestPreferenceAnswers {
+  surveyVariant?: SurveyVariant;
   leadName?: string;
   cell?: string;
   adults?: string;
   children?: string;
   childAges?: string;
+  partyNames?: string;
+  occasions?: string[];
+  occasionNote?: string;
   celebration?: string;
   celebrationDetail?: string;
   dogs?: string;
@@ -80,8 +87,15 @@ export interface GuestPreferenceAnswers {
   codeChannel?: string;
   earlyLate?: string;
   tripWhy?: string[];
+  indoorOutdoor?: string;
   insideOutside?: string;
   evenings?: string;
+  activities?: string[];
+  fishingGuide?: string;
+  bikeSource?: string;
+  skiResort?: string;
+  skiFirstTimer?: string;
+  amenities?: string[];
   topAmenities?: string[];
   houseTemp?: string;
   scentNotes?: string;
@@ -92,8 +106,13 @@ export interface GuestPreferenceAnswers {
   quietRoom?: string;
   allergies?: string;
   doNotLeave?: string;
+  foodVibe?: string;
   favoriteFood?: string;
+  snacks?: string;
   favoriteSnack?: string;
+  drinksAlcohol?: string;
+  alcoholPrefs?: string;
+  naDrinkPrefs?: string;
   favoriteNaDrink?: string;
   favoriteAlcohol?: string;
   coffeeStyle?: string;
@@ -102,6 +121,8 @@ export interface GuestPreferenceAnswers {
   coffeeBrand?: string;
   kidsSnack?: string;
   smileItem?: string;
+  favoriteMovie?: string;
+  popcornStyle?: string;
   anythingElse?: string;
   whyChose?: string;
 }
@@ -115,9 +136,23 @@ export interface GuestSurveyRecord {
   checkOut: string;
   createdAt: string;
   sentAt?: string;
-  channel?: 'email' | 'sms';
+  channel?: 'email' | 'sms' | 'none';
   completedAt?: string;
+  variant?: SurveyVariant;
+  confirmationCode?: string;
   answers?: GuestPreferenceAnswers;
+}
+
+export interface PublicStayPreference {
+  guestName: string;
+  propertyId?: string;
+  propertyName: string;
+  checkIn: string;
+  checkOut: string;
+  confirmationCode?: string | null;
+  variant?: SurveyVariant;
+  completed: boolean;
+  answers: GuestPreferenceAnswers | null;
 }
 
 export type PaidBy = 'brandon' | 'todd';
@@ -631,31 +666,32 @@ export const api = {
     }>('/api/surveys'),
   updateReservationContacts: (
     id: string,
-    body: { guestEmail?: string; guestPhone?: string },
+    body: { guestEmail?: string; guestPhone?: string; confirmationCode?: string },
   ) =>
     request<Reservation>(`/api/reservations/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
   sendGuestSurvey: (body: {
-    reservationId: string;
-    channel: 'email' | 'sms';
+    reservationId?: string;
+    confirmationCode?: string;
+    channel: 'email' | 'sms' | 'none';
     guestEmail?: string;
     guestPhone?: string;
   }) =>
-    request<{ ok: boolean; token: string; link: string; channel: string }>('/api/surveys/send', {
+    request<{
+      ok: boolean;
+      token: string;
+      link: string;
+      channel: string;
+      reservationId?: string;
+      confirmationCode?: string | null;
+    }>('/api/surveys/send', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
   getPublicStayPreference: (token: string) =>
-    request<{
-      guestName: string;
-      propertyName: string;
-      checkIn: string;
-      checkOut: string;
-      completed: boolean;
-      answers: GuestPreferenceAnswers | null;
-    }>(`/api/stay-preferences/${encodeURIComponent(token)}`),
+    request<PublicStayPreference>(`/api/stay-preferences/${encodeURIComponent(token)}`),
   submitPublicStayPreference: (token: string, answers: GuestPreferenceAnswers) =>
     request<{ ok: boolean }>(`/api/stay-preferences/${encodeURIComponent(token)}`, {
       method: 'POST',

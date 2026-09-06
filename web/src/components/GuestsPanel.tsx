@@ -6,6 +6,7 @@ import {
   type GuestSurveyRecord,
   type Reservation,
 } from '../lib/api';
+import { GuestStayCard } from './GuestStayCard';
 
 type HouseFilter = 'all' | 'ranch' | 'lindon' | 'river';
 
@@ -17,7 +18,9 @@ const HOUSE_FILTERS: Array<{ id: HouseFilter; label: string; activeClass: string
 ];
 
 function statusLabel(stay: Reservation, survey?: GuestSurveyRecord) {
-  if (survey?.completedAt) return 'Completed';
+  if (survey?.completedAt || stay.surveyCompletedAt) return 'Completed';
+  const channel = survey?.channel ?? stay.surveyChannel;
+  if ((survey?.sentAt || stay.surveySentAt) && channel === 'none') return 'Link ready';
   if (survey?.sentAt || stay.surveySentAt) return 'Sent';
   if (stay.guestEmail || stay.guestPhone) return 'Ready';
   return 'Need contact';
@@ -39,6 +42,7 @@ function houseSearchHaystack(stay: Reservation): string {
     stay.guestPhone,
     stay.source,
     stay.note,
+    stay.confirmationCode,
     stay.propertyId,
     property?.name,
     aliases,
@@ -64,7 +68,7 @@ export function GuestsPanel({
     configured: false,
     from: null,
   });
-  const [drafts, setDrafts] = useState<Record<string, { email: string; phone: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { email: string; phone: string; code: string }>>({});
   const [openId, setOpenId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [houseFilter, setHouseFilter] = useState<HouseFilter>('all');
@@ -82,7 +86,11 @@ export function GuestsPanel({
         const next = { ...prev };
         for (const r of data.reservations) {
           if (!next[r.id]) {
-            next[r.id] = { email: r.guestEmail ?? '', phone: r.guestPhone ?? '' };
+            next[r.id] = {
+              email: r.guestEmail ?? '',
+              phone: r.guestPhone ?? '',
+              code: r.confirmationCode ?? '',
+            };
           }
         }
         return next;
@@ -113,12 +121,13 @@ export function GuestsPanel({
   }, [reservations, houseFilter, houseQuery]);
 
   async function saveContacts(stay: Reservation) {
-    const draft = drafts[stay.id] ?? { email: '', phone: '' };
+    const draft = drafts[stay.id] ?? { email: '', phone: '', code: '' };
     setBusyId(stay.id);
     try {
       await api.updateReservationContacts(stay.id, {
         guestEmail: draft.email,
         guestPhone: draft.phone,
+        confirmationCode: draft.code,
       });
       onToast('Contacts saved', 'success');
       await load();
@@ -129,17 +138,27 @@ export function GuestsPanel({
     }
   }
 
-  async function send(stay: Reservation, channel: 'email' | 'sms') {
-    const draft = drafts[stay.id] ?? { email: '', phone: '' };
+  async function send(stay: Reservation, channel: 'email' | 'sms' | 'none') {
+    const draft = drafts[stay.id] ?? { email: '', phone: '', code: stay.confirmationCode ?? '' };
     setBusyId(stay.id);
     try {
       const result = await api.sendGuestSurvey({
         reservationId: stay.id,
+        confirmationCode: draft.code || stay.confirmationCode,
         channel,
         guestEmail: draft.email,
         guestPhone: draft.phone,
       });
-      onToast(`Sent ${channel} · ${result.link}`, 'success');
+      if (channel === 'none') {
+        try {
+          await navigator.clipboard.writeText(result.link);
+          onToast(`Link copied · ${result.link}`, 'success');
+        } catch {
+          onToast(`Link ready · ${result.link}`, 'success');
+        }
+      } else {
+        onToast(`Sent ${channel} · ${result.link}`, 'success');
+      }
       await load();
     } catch (e) {
       onToast(e instanceof Error ? e.message : 'Send failed', 'error');
@@ -153,13 +172,17 @@ export function GuestsPanel({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-bot="guests">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-sm text-slate-400">
         <p>
           Gmail: {gmail.connected ? gmail.email : 'not connected — sign in as utahmountainluxury@gmail.com'}
         </p>
         <p className="mt-1">
           SMS: {sms.configured ? `Twilio ${sms.from}` : 'waiting on Twilio env'}
+        </p>
+        <p className="mt-3 text-slate-300">
+          Send the River VIP survey by email or text, or mint a link to paste in Airbnb. Guest URL:{' '}
+          <code className="text-cyan-300">/stay/&lt;token&gt;</code>
         </p>
         {!gmail.connected && (
           <button
@@ -194,7 +217,7 @@ export function GuestsPanel({
         </div>
         <input
           className="w-full rounded-2xl bg-slate-900 border border-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500"
-          placeholder="Search Lindon House, Ranch House, River House, or guest name"
+          placeholder="Search guest, house, or Airbnb code (HMB9PP5E8F)"
           value={houseQuery}
           onChange={(e) => setHouseQuery(e.target.value)}
         />
@@ -214,7 +237,11 @@ export function GuestsPanel({
 
       {visibleStays.map((stay) => {
         const survey = byId.get(stay.id);
-        const draft = drafts[stay.id] ?? { email: stay.guestEmail ?? '', phone: stay.guestPhone ?? '' };
+        const draft = drafts[stay.id] ?? {
+          email: stay.guestEmail ?? '',
+          phone: stay.guestPhone ?? '',
+          code: stay.confirmationCode ?? '',
+        };
         const property = PROPERTIES[stay.propertyId]?.name ?? stay.propertyId;
         const open = openId === stay.id;
         return (
@@ -224,6 +251,7 @@ export function GuestsPanel({
                 <p className="text-white font-black">{stay.guestName}</p>
                 <p className="text-xs uppercase tracking-widest text-slate-500">
                   {property} · {stay.checkIn}–{stay.checkOut} · {stay.source}
+                  {stay.confirmationCode ? ` · ${stay.confirmationCode}` : ''}
                 </p>
                 {stay.note && <p className="text-xs text-slate-400 mt-1">{stay.note}</p>}
               </div>
@@ -233,7 +261,7 @@ export function GuestsPanel({
               </div>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-3 gap-3">
               <input
                 className="rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-sm"
                 placeholder="Email"
@@ -250,6 +278,14 @@ export function GuestsPanel({
                   setDrafts((d) => ({ ...d, [stay.id]: { ...draft, phone: e.target.value } }))
                 }
               />
+              <input
+                className="rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-sm"
+                placeholder="Airbnb / confirmation code"
+                value={draft.code}
+                onChange={(e) =>
+                  setDrafts((d) => ({ ...d, [stay.id]: { ...draft, code: e.target.value } }))
+                }
+              />
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -263,6 +299,7 @@ export function GuestsPanel({
               </button>
               <button
                 type="button"
+                data-bot="survey-email"
                 disabled={busyId === stay.id || !draft.email}
                 onClick={() => void send(stay, 'email')}
                 className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-black uppercase disabled:opacity-40"
@@ -271,6 +308,7 @@ export function GuestsPanel({
               </button>
               <button
                 type="button"
+                data-bot="survey-sms"
                 disabled={busyId === stay.id || !draft.phone}
                 onClick={() => void send(stay, 'sms')}
                 className="px-4 py-2 rounded-xl bg-emerald-700 text-white text-xs font-black uppercase disabled:opacity-40"
@@ -279,6 +317,16 @@ export function GuestsPanel({
               </button>
               <button
                 type="button"
+                data-bot="survey-copy-link"
+                disabled={busyId === stay.id}
+                onClick={() => void send(stay, 'none')}
+                className="px-4 py-2 rounded-xl bg-cyan-800 text-white text-xs font-black uppercase disabled:opacity-40"
+              >
+                Copy link
+              </button>
+              <button
+                type="button"
+                data-bot="survey-answers"
                 onClick={() => setOpenId(open ? null : stay.id)}
                 className="px-4 py-2 rounded-xl border border-slate-700 text-xs font-black uppercase"
               >
@@ -287,13 +335,19 @@ export function GuestsPanel({
             </div>
 
             {open && (
-              <div className="text-sm text-slate-300 whitespace-pre-wrap bg-slate-950 rounded-2xl p-4">
-                {survey?.answers
-                  ? Object.entries(survey.answers)
-                      .filter(([, v]) => (Array.isArray(v) ? v.length : String(v ?? '').trim()))
-                      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-                      .join('\n')
-                  : 'No preference form submitted yet.'}
+              <div className="bg-slate-950 rounded-2xl p-4">
+                {survey?.answers ? (
+                  <GuestStayCard
+                    guestName={stay.guestName}
+                    propertyName={property}
+                    checkIn={stay.checkIn}
+                    checkOut={stay.checkOut}
+                    confirmationCode={stay.confirmationCode ?? survey.confirmationCode}
+                    answers={survey.answers}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-400">No preference form submitted yet.</p>
+                )}
               </div>
             )}
           </article>

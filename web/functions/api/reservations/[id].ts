@@ -11,6 +11,7 @@ export const onRequestPatch: PagesFunction<AgentEnv> = async ({ request, env, pa
     guestName?: string;
     guestEmail?: string;
     guestPhone?: string;
+    confirmationCode?: string;
   };
 
   const patch: Partial<ReservationRecord> = {};
@@ -18,6 +19,7 @@ export const onRequestPatch: PagesFunction<AgentEnv> = async ({ request, env, pa
   if (body.guestName !== undefined) patch.guestName = body.guestName;
   if (body.guestEmail !== undefined) patch.guestEmail = body.guestEmail.trim();
   if (body.guestPhone !== undefined) patch.guestPhone = body.guestPhone.trim();
+  if (body.confirmationCode !== undefined) patch.confirmationCode = body.confirmationCode.trim();
   if (body.payout !== undefined) {
     const payout = Number(body.payout);
     if (!Number.isFinite(payout) || payout < 0) {

@@ -1,13 +1,19 @@
 import { kvGet, kvPut, newId } from './kv-json';
 import type { SettingsEnv } from './kv';
 import type { PropertyId } from './agent/types';
+import type { SurveyChannel, SurveyVariant } from './survey-fields';
+import { surveyVariantForProperty } from './survey-fields';
 
 export interface GuestPreferenceAnswers {
+  surveyVariant?: SurveyVariant;
   leadName?: string;
   cell?: string;
   adults?: string;
   children?: string;
   childAges?: string;
+  partyNames?: string;
+  occasions?: string[];
+  occasionNote?: string;
   celebration?: string;
   celebrationDetail?: string;
   dogs?: string;
@@ -18,8 +24,15 @@ export interface GuestPreferenceAnswers {
   codeChannel?: string;
   earlyLate?: string;
   tripWhy?: string[];
+  indoorOutdoor?: string;
   insideOutside?: string;
   evenings?: string;
+  activities?: string[];
+  fishingGuide?: string;
+  bikeSource?: string;
+  skiResort?: string;
+  skiFirstTimer?: string;
+  amenities?: string[];
   topAmenities?: string[];
   houseTemp?: string;
   scentNotes?: string;
@@ -30,8 +43,13 @@ export interface GuestPreferenceAnswers {
   quietRoom?: string;
   allergies?: string;
   doNotLeave?: string;
+  foodVibe?: string;
   favoriteFood?: string;
+  snacks?: string;
   favoriteSnack?: string;
+  drinksAlcohol?: string;
+  alcoholPrefs?: string;
+  naDrinkPrefs?: string;
   favoriteNaDrink?: string;
   favoriteAlcohol?: string;
   coffeeStyle?: string;
@@ -40,6 +58,8 @@ export interface GuestPreferenceAnswers {
   coffeeBrand?: string;
   kidsSnack?: string;
   smileItem?: string;
+  favoriteMovie?: string;
+  popcornStyle?: string;
   anythingElse?: string;
   whyChose?: string;
 }
@@ -53,8 +73,10 @@ export interface GuestSurveyRecord {
   checkOut: string;
   createdAt: string;
   sentAt?: string;
-  channel?: 'email' | 'sms';
+  channel?: SurveyChannel;
   completedAt?: string;
+  variant?: SurveyVariant;
+  confirmationCode?: string;
   answers?: GuestPreferenceAnswers;
 }
 
@@ -92,11 +114,24 @@ export async function upsertSurveyForStay(
     guestName: string;
     checkIn: string;
     checkOut: string;
+    confirmationCode?: string;
   },
 ): Promise<GuestSurveyRecord> {
   const list = await loadSurveys(env);
   const existing = list.find((s) => s.reservationId === stay.id);
-  if (existing) return existing;
+  if (existing) {
+    const next = {
+      ...existing,
+      variant: existing.variant ?? surveyVariantForProperty(stay.propertyId),
+      confirmationCode: stay.confirmationCode || existing.confirmationCode,
+    };
+    if (next.variant !== existing.variant || next.confirmationCode !== existing.confirmationCode) {
+      const idx = list.findIndex((s) => s.token === existing.token);
+      list[idx] = next;
+      await saveSurveys(env, list);
+    }
+    return next;
+  }
   const item: GuestSurveyRecord = {
     token: newId('pref').replace(/^pref-/, ''),
     reservationId: stay.id,
@@ -105,6 +140,8 @@ export async function upsertSurveyForStay(
     checkIn: stay.checkIn,
     checkOut: stay.checkOut,
     createdAt: new Date().toISOString(),
+    variant: surveyVariantForProperty(stay.propertyId),
+    confirmationCode: stay.confirmationCode,
   };
   list.push(item);
   await saveSurveys(env, list);
@@ -114,7 +151,7 @@ export async function upsertSurveyForStay(
 export async function markSurveySent(
   env: SettingsEnv,
   token: string,
-  channel: 'email' | 'sms',
+  channel: SurveyChannel,
 ): Promise<GuestSurveyRecord | null> {
   const list = await loadSurveys(env);
   const idx = list.findIndex((s) => s.token === token);

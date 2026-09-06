@@ -51,6 +51,10 @@ export const AGENT_SITE_MAP = {
     esignParseInvoice:
       'POST /api/esign/parse-invoice { type:"text"|"image"|"gmail"|"gmail-search", templateId, text?, imageBase64?, mimeType?, query?, messageId? }',
     thisMap: 'GET /api/agent/map',
+    guestSurveys: 'GET /api/surveys',
+    sendGuestSurvey:
+      'POST /api/surveys/send { reservationId? , confirmationCode?, channel:"email"|"sms"|"none", guestEmail?, guestPhone? } — none mints a /stay/:token link without sending',
+    publicStaySurvey: 'GET/POST /api/stay-preferences/:token — public River VIP / classic preference form',
   },
   partnerSpend: {
     onlyOn: 'construction',

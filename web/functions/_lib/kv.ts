@@ -10,6 +10,7 @@ export interface SettingsEnv {
   TWILIO_AUTH_TOKEN?: string;
   UML_TWILIO_SMS_FROM?: string;
   TWILIO_SMS_FROM?: string;
+  SURVEY_NOTIFY_EMAILS?: string;
 }
 
 export async function loadExtraCleaningFees(env: SettingsEnv): Promise<Record<string, number>> {
