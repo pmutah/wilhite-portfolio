@@ -146,6 +146,18 @@ export const RESERVATIONS = [
     guestPhone: '+18015805653',
     note: 'HA-W4X608 · 18 adults · first Riverhouse booking · booked as Melanie Jackson · estimated host payout $4,837.14',
   },
+  {
+    id: 'rh-trisha',
+    guestName: 'Trisha Jones',
+    propertyId: 'river',
+    checkIn: '2026-12-28',
+    checkOut: '2027-01-02',
+    payout: 0,
+    source: 'Airbnb',
+    guestPhone: '+18016947248',
+    confirmationCode: 'HMB9PP5E8F',
+    note: 'HMB9PP5E8F · 16 adults · River VIP · Dec 28 2026–Jan 2 2027',
+  },
 ];
 
 export const EXPENSES = [

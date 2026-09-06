@@ -81,4 +81,9 @@ export const BOT_SELECTORS = {
   formStore: '[data-bot="form-store"]',
   formEmail: '[data-bot="form-email"]',
   formSms: '[data-bot="form-sms"]',
+  guests: '[data-bot="guests"]',
+  surveyEmail: '[data-bot="survey-email"]',
+  surveySms: '[data-bot="survey-sms"]',
+  surveyCopyLink: '[data-bot="survey-copy-link"]',
+  surveyAnswers: '[data-bot="survey-answers"]',
 } as const;

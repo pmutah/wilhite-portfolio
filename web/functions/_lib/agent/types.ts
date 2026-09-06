@@ -18,9 +18,11 @@ export interface ReservationRecord {
   icalUid?: string;
   guestEmail?: string;
   guestPhone?: string;
+  /** Airbnb / Hospitable / VRBO confirmation code (e.g. HMB9PP5E8F). */
+  confirmationCode?: string;
   surveyToken?: string;
   surveySentAt?: string;
-  surveyChannel?: 'email' | 'sms';
+  surveyChannel?: 'email' | 'sms' | 'none';
   surveyCompletedAt?: string;
 }
 
@@ -161,4 +163,5 @@ export interface AgentEnv {
   TWILIO_AUTH_TOKEN?: string;
   UML_TWILIO_SMS_FROM?: string;
   TWILIO_SMS_FROM?: string;
+  SURVEY_NOTIFY_EMAILS?: string;
 }
