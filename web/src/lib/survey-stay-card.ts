@@ -13,6 +13,13 @@ export type StayCard = {
   sections: StayCardSection[];
 };
 
+/** Host ops defaults — not guest survey questions. */
+export const RIVER_VIP_ARRIVAL_DEFAULTS = [
+  'Kitchen flowers',
+  'Mints on beds/nightstands',
+  'Scent / clean',
+] as const;
+
 function line(...parts: Array<string | undefined | null>): string | null {
   const text = parts
     .map((p) => (p ?? '').trim())
@@ -38,6 +45,48 @@ function pushSection(
   sections.push({ id, title, lines: clean, tone });
 }
 
+function isVipStay(input: {
+  propertyId?: string;
+  variant?: string;
+  answers: GuestPreferenceAnswers;
+}): boolean {
+  return (
+    input.propertyId === 'river' ||
+    input.variant === 'vip' ||
+    input.answers.surveyVariant === 'vip'
+  );
+}
+
+function vipArrivalChecklist(a: GuestPreferenceAnswers): string[] {
+  const fridge = line(
+    a.foodVibe || a.favoriteFood ? `Food vibe: ${a.foodVibe || a.favoriteFood}` : undefined,
+    a.snacks || a.favoriteSnack ? `Snacks: ${a.snacks || a.favoriteSnack}` : undefined,
+    a.kidsSnack ? `Kids snacks: ${a.kidsSnack}` : undefined,
+    a.doNotLeave ? `Do not leave out: ${a.doNotLeave}` : undefined,
+  );
+  const drinksAlcohol = (a.drinksAlcohol ?? '').toLowerCase();
+  const toast =
+    drinksAlcohol === 'no' || drinksAlcohol === 'n'
+      ? line('Non-drinking toast', a.naDrinkPrefs || a.favoriteNaDrink)
+      : drinksAlcohol === 'yes' || drinksAlcohol === 'y'
+        ? line('Alcoholic toast', a.alcoholPrefs || a.favoriteAlcohol)
+        : line(a.alcoholPrefs || a.favoriteAlcohol, a.naDrinkPrefs || a.favoriteNaDrink);
+  const theater = line(
+    a.favoriteMovie ? `Movie / genre: ${a.favoriteMovie}` : undefined,
+    a.popcornStyle ? `Popcorn: ${a.popcornStyle}` : undefined,
+  );
+  return [
+    ...RIVER_VIP_ARRIVAL_DEFAULTS.map((item) =>
+      item === 'Scent / clean' && a.scentNotes
+        ? `${item} — ${a.scentNotes}`
+        : `${item} — VIP host default`,
+    ),
+    fridge ? `Fridge stock — ${fridge}` : 'Fridge stock — waiting on guest survey',
+    toast ? `Toast beverage — ${toast}` : 'Toast beverage — waiting on guest survey',
+    theater ? `Theater / popcorn — ${theater}` : 'Theater / popcorn — waiting on guest survey',
+  ];
+}
+
 /** Readable arrival-ops card for staff — never a raw key dump. */
 export function buildStayCard(input: {
   guestName: string;
@@ -45,10 +94,17 @@ export function buildStayCard(input: {
   checkIn: string;
   checkOut: string;
   confirmationCode?: string;
+  propertyId?: string;
+  variant?: string;
   answers: GuestPreferenceAnswers;
 }): StayCard {
   const a = input.answers;
+  const vip = isVipStay(input);
   const sections: StayCardSection[] = [];
+
+  if (vip) {
+    pushSection(sections, 'checklist', 'Pre-arrival checklist', vipArrivalChecklist(a), 'ops');
+  }
 
   const occasions = list(a.occasions) ?? a.celebration;
   pushSection(sections, 'occasion', 'Occasion', [
@@ -117,38 +173,40 @@ export function buildStayCard(input: {
     'ops',
   );
 
-  pushSection(
-    sections,
-    'fridge',
-    'Fridge / snacks',
-    [
-      a.foodVibe || a.favoriteFood ? `Food vibe: ${a.foodVibe || a.favoriteFood}` : null,
-      a.snacks || a.favoriteSnack ? `Snacks: ${a.snacks || a.favoriteSnack}` : null,
-      a.kidsSnack ? `Kids snacks: ${a.kidsSnack}` : null,
-      a.doNotLeave ? `Do not leave out: ${a.doNotLeave}` : null,
-    ],
-    'ops',
-  );
+  if (!vip) {
+    pushSection(
+      sections,
+      'fridge',
+      'Fridge / snacks',
+      [
+        a.foodVibe || a.favoriteFood ? `Food vibe: ${a.foodVibe || a.favoriteFood}` : null,
+        a.snacks || a.favoriteSnack ? `Snacks: ${a.snacks || a.favoriteSnack}` : null,
+        a.kidsSnack ? `Kids snacks: ${a.kidsSnack}` : null,
+        a.doNotLeave ? `Do not leave out: ${a.doNotLeave}` : null,
+      ],
+      'ops',
+    );
 
-  const drinksAlcohol = (a.drinksAlcohol ?? '').toLowerCase();
-  const toast =
-    drinksAlcohol === 'no' || drinksAlcohol === 'n'
-      ? line('Non-drinking toast', a.naDrinkPrefs || a.favoriteNaDrink)
-      : drinksAlcohol === 'yes' || drinksAlcohol === 'y'
-        ? line('Alcoholic toast', a.alcoholPrefs || a.favoriteAlcohol)
-        : line(a.alcoholPrefs || a.favoriteAlcohol, a.naDrinkPrefs || a.favoriteNaDrink);
-  pushSection(sections, 'toast', 'Toast beverage', [toast], 'ops');
+    const drinksAlcohol = (a.drinksAlcohol ?? '').toLowerCase();
+    const toast =
+      drinksAlcohol === 'no' || drinksAlcohol === 'n'
+        ? line('Non-drinking toast', a.naDrinkPrefs || a.favoriteNaDrink)
+        : drinksAlcohol === 'yes' || drinksAlcohol === 'y'
+          ? line('Alcoholic toast', a.alcoholPrefs || a.favoriteAlcohol)
+          : line(a.alcoholPrefs || a.favoriteAlcohol, a.naDrinkPrefs || a.favoriteNaDrink);
+    pushSection(sections, 'toast', 'Toast beverage', [toast], 'ops');
 
-  pushSection(
-    sections,
-    'theater',
-    'Theater / popcorn',
-    [
-      a.favoriteMovie ? `Movie / genre: ${a.favoriteMovie}` : null,
-      a.popcornStyle ? `Popcorn: ${a.popcornStyle}` : null,
-    ],
-    'ops',
-  );
+    pushSection(
+      sections,
+      'theater',
+      'Theater / popcorn',
+      [
+        a.favoriteMovie ? `Movie / genre: ${a.favoriteMovie}` : null,
+        a.popcornStyle ? `Popcorn: ${a.popcornStyle}` : null,
+      ],
+      'ops',
+    );
+  }
 
   pushSection(sections, 'allergies', 'Allergies / dietary', [a.allergies], 'alert');
   pushSection(sections, 'notes', 'Anything else', [a.anythingElse || a.smileItem], 'note');

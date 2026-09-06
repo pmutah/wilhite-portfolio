@@ -56,6 +56,8 @@ export const onRequestPost: PagesFunction<AgentEnv> = async ({ request, env, par
     checkIn: survey.checkIn,
     checkOut: survey.checkOut,
     confirmationCode: survey.confirmationCode,
+    propertyId: survey.propertyId,
+    variant,
     answers: { ...answers, surveyVariant: variant },
   });
   const cardText = formatStayCardText(card);

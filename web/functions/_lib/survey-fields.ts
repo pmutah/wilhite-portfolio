@@ -68,6 +68,13 @@ export function surveyVariantForProperty(propertyId: string): SurveyVariant {
   return propertyId === 'river' ? 'vip' : 'classic';
 }
 
+/** Host ops defaults — not guest survey questions. */
+export const RIVER_VIP_ARRIVAL_DEFAULTS = [
+  'Kitchen flowers',
+  'Mints on beds/nightstands',
+  'Scent / clean',
+] as const;
+
 export function normalizeConfirmationCode(value?: string | null): string {
   return (value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }

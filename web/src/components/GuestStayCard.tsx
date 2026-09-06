@@ -7,6 +7,8 @@ export function GuestStayCard({
   checkIn,
   checkOut,
   confirmationCode,
+  propertyId,
+  variant,
   answers,
 }: {
   guestName: string;
@@ -14,6 +16,8 @@ export function GuestStayCard({
   checkIn: string;
   checkOut: string;
   confirmationCode?: string;
+  propertyId?: string;
+  variant?: string;
   answers: GuestPreferenceAnswers;
 }) {
   const card = buildStayCard({
@@ -22,6 +26,8 @@ export function GuestStayCard({
     checkIn,
     checkOut,
     confirmationCode,
+    propertyId,
+    variant,
     answers,
   });
 

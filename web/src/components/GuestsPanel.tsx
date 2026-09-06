@@ -336,14 +336,16 @@ export function GuestsPanel({
 
             {open && (
               <div className="bg-slate-950 rounded-2xl p-4">
-                {survey?.answers ? (
+                {survey?.answers || stay.propertyId === 'river' ? (
                   <GuestStayCard
                     guestName={stay.guestName}
                     propertyName={property}
                     checkIn={stay.checkIn}
                     checkOut={stay.checkOut}
-                    confirmationCode={stay.confirmationCode ?? survey.confirmationCode}
-                    answers={survey.answers}
+                    confirmationCode={stay.confirmationCode ?? survey?.confirmationCode}
+                    propertyId={stay.propertyId}
+                    variant={survey?.variant}
+                    answers={survey?.answers ?? {}}
                   />
                 ) : (
                   <p className="text-sm text-slate-400">No preference form submitted yet.</p>
